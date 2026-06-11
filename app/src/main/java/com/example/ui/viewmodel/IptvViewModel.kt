@@ -188,6 +188,41 @@ class IptvViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun downloadAndParseEpg(epgUrl: String) {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            _refreshStatusMessage.value = "Downloading XMLTV EPG data..."
+            try {
+                val result = repository.refreshXmltvEpg(epgUrl)
+                if (result.isSuccess) {
+                    val size = result.getOrNull() ?: 0
+                    _refreshStatusMessage.value = "Successfully parsed $size EPG programs!"
+                } else {
+                    _refreshStatusMessage.value = "Failed to load XMLTV EPG: ${result.exceptionOrNull()?.message}"
+                }
+            } catch (e: Exception) {
+                _refreshStatusMessage.value = "Failed to parse XMLTV: ${e.localizedMessage}"
+            } finally {
+                _isRefreshing.value = false
+            }
+        }
+    }
+
+    fun clearAllEpg() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            _refreshStatusMessage.value = "Clearing EPG database..."
+            try {
+                repository.clearAllEpgPrograms()
+                _refreshStatusMessage.value = "EPG database cleared. Showing empty guide."
+            } catch (e: Exception) {
+                _refreshStatusMessage.value = "Failed to clear: ${e.localizedMessage}"
+            } finally {
+                _isRefreshing.value = false
+            }
+        }
+    }
+
     fun selectChannel(channel: ChannelEntity?) {
         _activeChannel.value = channel
         channel?.let {

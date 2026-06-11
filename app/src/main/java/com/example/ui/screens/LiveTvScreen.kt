@@ -382,6 +382,7 @@ fun LiveTvScreen(
                 ) {
                     items(activeChannelsToShow) { channel ->
                         ChannelListRow(
+                            viewModel = viewModel,
                             channel = channel,
                             isSelected = activeChannel?.id == channel.id,
                             onClick = { viewModel.selectChannel(channel) },
@@ -397,6 +398,7 @@ fun LiveTvScreen(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ChannelListRow(
+    viewModel: IptvViewModel,
     channel: ChannelEntity,
     isSelected: Boolean,
     onClick: () -> Unit,
@@ -463,11 +465,57 @@ fun ChannelListRow(
                 )
                 Text(
                     text = channel.groupTitle ?: "General",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    fontSize = 11.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+
+                val schedule by viewModel.fetchUpcomingSchedule(channel.tvgId ?: channel.name).collectAsState(initial = emptyList())
+                val now = remember { System.currentTimeMillis() }
+                val currentProgram = remember(schedule, now) {
+                    schedule.firstOrNull { it.startTime <= now && it.endTime > now }
+                }
+
+                if (currentProgram != null) {
+                    val sdfTime = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
+                    val startStr = sdfTime.format(Date(currentProgram.startTime))
+                    val endStr = sdfTime.format(Date(currentProgram.endTime))
+                    
+                    Row(
+                        modifier = Modifier.padding(top = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(4.dp))
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "NOW",
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = currentProgram.title,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "$startStr - $endStr",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            fontSize = 10.sp
+                        )
+                    }
+                }
             }
 
             IconButton(onClick = onFavoriteToggle) {

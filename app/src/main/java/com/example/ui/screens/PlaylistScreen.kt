@@ -34,6 +34,7 @@ fun PlaylistScreen(
 
     var nameInput by remember { mutableStateOf("") }
     var urlInput by remember { mutableStateOf("") }
+    var epgUrlInput by remember { mutableStateOf("") }
     
     // Dialog states
     var showAddDialog by remember { mutableStateOf(false) }
@@ -418,6 +419,139 @@ fun PlaylistScreen(
                             Icon(Icons.Default.Add, contentDescription = "Import")
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Import and Cache channels", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 5. EPG XMLTV Service Manager Section ---
+        item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), // #2B2930
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Schedule,
+                            contentDescription = "EPG XMLTV Service",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "EPG XMLTV Guide Service",
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Download and load official XMLTV program guide feeds (compatible with both standard .xml and compressed .xml.gz files). Guide details map automatically on matching channel names or tvg-id attributes.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = epgUrlInput,
+                        onValueChange = { epgUrlInput = it },
+                        label = { Text("XMLTV Feed URL (.xml or .xml.gz)") },
+                        placeholder = { Text("https://example.com/guide.xml.gz") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        ),
+                        singleLine = true,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Preset quick select buttons
+                    Text(
+                        text = "Popular Public XMLTV Presets:",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { epgUrlInput = "https://iptv-org.github.io/epg/guides/us.xml" },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            shape = RoundedCornerShape(6.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("🇺🇸 US Guide", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Button(
+                            onClick = { epgUrlInput = "https://iptv-org.github.io/epg/guides/uk.xml" },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            shape = RoundedCornerShape(6.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("🇬🇧 UK Guide", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Button(
+                            onClick = { epgUrlInput = "https://iptv-org.github.io/epg/guides/be.xml" },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            shape = RoundedCornerShape(6.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("🇧🇪 BE Guide", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                viewModel.downloadAndParseEpg(epgUrlInput)
+                                epgUrlInput = ""
+                            },
+                            enabled = epgUrlInput.isNotBlank() && epgUrlInput.startsWith("http") && !isRefreshing,
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1.2f)
+                        ) {
+                            if (isRefreshing) {
+                                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(16.dp))
+                            } else {
+                                Icon(Icons.Default.Download, contentDescription = "Fetch", modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Fetch Guide", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        Button(
+                            onClick = { viewModel.clearAllEpg() },
+                            enabled = !isRefreshing,
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(0.8f)
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = "Clear Cache", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Clear", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

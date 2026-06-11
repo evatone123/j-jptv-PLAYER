@@ -285,6 +285,12 @@ class IptvRepository(
         }
     }
 
+    suspend fun clearAllEpgPrograms() {
+        withContext(Dispatchers.IO) {
+            iptvDao.deleteOldEpgPrograms(System.currentTimeMillis() + (365L * 24L * 60L * 60L * 1000L))
+        }
+    }
+
     /**
      * Optional fetch of XMLTV standard electronic guides if users have compressed/uncompressed XMLTV.
      */
