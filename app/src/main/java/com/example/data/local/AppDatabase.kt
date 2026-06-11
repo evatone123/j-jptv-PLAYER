@@ -14,7 +14,7 @@ import com.example.data.model.EpgProgramEntity
         ChannelEntity::class,
         EpgProgramEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

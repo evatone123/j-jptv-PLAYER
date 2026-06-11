@@ -47,6 +47,12 @@ interface IptvDao {
     @Query("UPDATE channels SET isFavorite = :isFavorite WHERE id = :channelId")
     suspend fun updateFavoriteStatus(channelId: Long, isFavorite: Boolean)
 
+    @Query("UPDATE channels SET lastWatchedAt = :lastWatchedAt WHERE id = :channelId")
+    suspend fun updateLastWatched(channelId: Long, lastWatchedAt: Long)
+
+    @Query("SELECT * FROM channels WHERE lastWatchedAt IS NOT NULL ORDER BY lastWatchedAt DESC LIMIT :limit")
+    fun getRecentChannels(limit: Int): Flow<List<ChannelEntity>>
+
     @Query("SELECT * FROM channels WHERE isFavorite = 1 ORDER BY name ASC")
     fun getFavoriteChannels(): Flow<List<ChannelEntity>>
 

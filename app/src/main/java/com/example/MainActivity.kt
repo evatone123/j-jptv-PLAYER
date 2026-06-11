@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -82,6 +83,7 @@ fun IptvApp(viewModel: IptvViewModel) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val isFullscreen by viewModel.isFullscreen.collectAsState()
 
     val navigationItems = listOf(
         NavigationItem("live_tv", "Live TV", Icons.Default.LiveTv),
@@ -93,84 +95,88 @@ fun IptvApp(viewModel: IptvViewModel) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.LiveTv,
-                            contentDescription = "App Logo",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Text(
-                            text = "J-IPTV Player",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
-                },
-                actions = {
-                    val isDark by viewModel.isDarkMode.collectAsState()
-                    IconButton(onClick = { viewModel.toggleTheme() }) {
-                        Icon(
-                            imageVector = if (isDark) Icons.Default.WbSunny else Icons.Default.NightsStay,
-                            contentDescription = "Toggle Light/Dark Theme",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground
+            if (!isFullscreen) {
+                TopAppBar(
+                    title = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.LiveTv,
+                                contentDescription = "App Logo",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "J-IPTV Player",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                    },
+                    actions = {
+                        val isDark by viewModel.isDarkMode.collectAsState()
+                        IconButton(onClick = { viewModel.toggleTheme() }) {
+                            Icon(
+                                imageVector = if (isDark) Icons.Default.WbSunny else Icons.Default.NightsStay,
+                                contentDescription = "Toggle Light/Dark Theme",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        titleContentColor = MaterialTheme.colorScheme.onBackground
+                    )
                 )
-            )
+            }
         },
         bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant, // #2B2930
-                tonalElevation = 8.dp
-            ) {
-                navigationItems.forEach { item ->
-                    val isSelected = currentRoute == item.route
-                    NavigationBarItem(
-                        selected = isSelected,
-                        onClick = {
-                            if (currentRoute != item.route) {
-                                navController.navigate(item.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
+            if (!isFullscreen) {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant, // #2B2930
+                    tonalElevation = 8.dp
+                ) {
+                    navigationItems.forEach { item ->
+                        val isSelected = currentRoute == item.route
+                        NavigationBarItem(
+                            selected = isSelected,
+                            onClick = {
+                                if (currentRoute != item.route) {
+                                    navController.navigate(item.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
                                     }
-                                    launchSingleTop = true
-                                    restoreState = true
                                 }
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = item.icon,
-                                contentDescription = item.label,
-                                modifier = Modifier.size(22.dp)
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = item.icon,
+                                    contentDescription = item.label,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = item.label,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,      // #D0BCFF
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant, // #CAC4D0
+                                selectedTextColor = MaterialTheme.colorScheme.primary,      // #D0BCFF
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant, // #CAC4D0
+                                indicatorColor = MaterialTheme.colorScheme.secondary         // #4A4458
                             )
-                        },
-                        label = {
-                            Text(
-                                text = item.label,
-                                fontSize = 11.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.primary,      // #D0BCFF
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant, // #CAC4D0
-                            selectedTextColor = MaterialTheme.colorScheme.primary,      // #D0BCFF
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant, // #CAC4D0
-                            indicatorColor = MaterialTheme.colorScheme.secondary         // #4A4458
                         )
-                    )
+                    }
                 }
             }
         }
@@ -178,7 +184,7 @@ fun IptvApp(viewModel: IptvViewModel) {
         NavHost(
             navController = navController,
             startDestination = "live_tv",
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(if (isFullscreen) PaddingValues(0.dp) else innerPadding)
         ) {
             composable("live_tv") {
                 LiveTvScreen(viewModel = viewModel)

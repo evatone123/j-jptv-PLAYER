@@ -1,36 +1,22 @@
 package com.example.ui.components
 
 import android.view.ViewGroup
-import android.widget.FrameLayout
+import android.webkit.WebChromeClient
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Error
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.MediaItem
-import androidx.media3.common.PlaybackException
-import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.PlayerView
 
 @Composable
 fun VideoPlayer(
@@ -39,57 +25,89 @@ fun VideoPlayer(
     isMuted: Boolean = false,
     showControls: Boolean = true
 ) {
-    val context = LocalContext.current
-    
-    var isLoading by remember { mutableStateOf(true) }
-    var hasError by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isWebViewLoading by remember { mutableStateOf(true) }
 
-    // Re-create ExoPlayer when the URL changes
-    val exoPlayer = remember(url) {
-        val player = ExoPlayer.Builder(context).build().apply {
-            playWhenReady = true
-            repeatMode = Player.REPEAT_MODE_OFF
-        }
-        
-        val mediaItem = MediaItem.fromUri(url)
-        player.setMediaItem(mediaItem)
-        player.prepare()
-        player
-    }
-
-    // Apply Mute status
-    LaunchedEffect(exoPlayer, isMuted) {
-        exoPlayer.volume = if (isMuted) 0f else 1f
-    }
-
-    // State listener
-    DisposableEffect(exoPlayer) {
-        val listener = object : Player.Listener {
-            override fun onPlaybackStateChanged(playbackState: Int) {
-                isLoading = (playbackState == Player.STATE_BUFFERING)
-                if (playbackState == Player.STATE_READY) {
-                    hasError = false
+    // Generates the HTML5 player source code with embedded hls.js support
+    val htmlContent = remember(url, showControls) {
+        """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                body, html {
+                    margin: 0;
+                    padding: 0;
+                    width: 100%;
+                    height: 100%;
+                    overflow: hidden;
+                    background-color: #000000;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                 }
-            }
-
-            override fun onPlayerError(error: PlaybackException) {
-                isLoading = false
-                hasError = true
-                errorMessage = when (error.errorCode) {
-                    PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED -> "Network connection failed"
-                    PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT -> "Connection timeout"
-                    PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND, PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS -> "Stream not found (HTTP 404/500)"
-                    else -> "Media playback error"
+                video {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
+                    outline: none;
                 }
-            }
-        }
-        
-        exoPlayer.addListener(listener)
-        onDispose {
-            exoPlayer.removeListener(listener)
-            exoPlayer.release()
-        }
+            </style>
+            <!-- Include robust hls.js for handling live TS / M3U8 streams directly in Android WebView and chromium runtime -->
+            <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.0/dist/hls.min.js"></script>
+        </head>
+        <body>
+            <video id="video" ${if (showControls) "controls" else ""} autoplay playsinline></video>
+            <script>
+                var video = document.getElementById('video');
+                var streamUrl = '$url';
+                
+                function initPlayer() {
+                    if (hlsIsSupportedForUrl(streamUrl)) {
+                        var hls = new Hls({
+                            maxMaxBufferLength: 10,
+                            enableWorker: true,
+                            lowLatencyMode: true
+                        });
+                        hls.loadSource(streamUrl);
+                        hls.attachMedia(video);
+                        hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                            video.play().catch(function(e) {
+                                console.log("Play failed: " + e);
+                            });
+                        });
+                        hls.on(Hls.Events.ERROR, function(event, data) {
+                            if (data.fatal) {
+                                switch(data.type) {
+                                    case Hls.ErrorTypes.NETWORK_ERROR:
+                                        hls.startLoad();
+                                        break;
+                                    case Hls.ErrorTypes.MEDIA_ERROR:
+                                        hls.recoverMediaError();
+                                        break;
+                                    default:
+                                        break;
+                                }
+                            }
+                        });
+                    } else {
+                        // Direct source fallback for standard MP4, WebM or native HLS if WebView allows it
+                        video.src = streamUrl;
+                        video.play().catch(function(e) {
+                            console.log("Fallback play failed: " + e);
+                        });
+                    }
+                }
+
+                function hlsIsSupportedForUrl(url) {
+                    return Hls.isSupported() && (url.toLowerCase().indexOf('.m3u8') !== -1 || url.toLowerCase().indexOf('stream') !== -1);
+                }
+
+                initPlayer();
+            </script>
+        </body>
+        </html>
+        """.trimIndent()
     }
 
     Box(
@@ -98,72 +116,63 @@ fun VideoPlayer(
     ) {
         AndroidView(
             factory = { ctx ->
-                PlayerView(ctx).apply {
-                    player = exoPlayer
-                    useController = showControls
-                    // Fit video inside container
-                    resizeMode = PlayerView.SHOW_BUFFERING_NEVER
-                    layoutParams = FrameLayout.LayoutParams(
+                WebView(ctx).apply {
+                    layoutParams = ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
+                    settings.apply {
+                        javaScriptEnabled = true
+                        domStorageEnabled = true
+                        mediaPlaybackRequiresUserGesture = false
+                        mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                        useWideViewPort = true
+                        loadWithOverviewMode = true
+                    }
+                    webChromeClient = WebChromeClient()
+                    webViewClient = object : WebViewClient() {
+                        override fun onPageFinished(view: WebView?, url: String?) {
+                            super.onPageFinished(view, url)
+                            isWebViewLoading = false
+                        }
+                    }
+                    
+                    val encodedHtml = android.util.Base64.encodeToString(
+                        htmlContent.toByteArray(),
+                        android.util.Base64.NO_PADDING
+                    )
+                    loadData(encodedHtml, "text/html", "base64")
+                    tag = url
                 }
             },
-            update = { playerView ->
-                playerView.useController = showControls
+            update = { webView ->
+                if (webView.tag != url) {
+                    webView.tag = url
+                    isWebViewLoading = true
+                    val encodedHtml = android.util.Base64.encodeToString(
+                        htmlContent.toByteArray(),
+                        android.util.Base64.NO_PADDING
+                    )
+                    webView.loadData(encodedHtml, "text/html", "base64")
+                }
+                // Directly and efficiently control muted state through evaluation without reloading the page
+                webView.evaluateJavascript("document.getElementById('video').muted = $isMuted;", null)
             },
             modifier = Modifier.fillMaxSize()
         )
 
-        if (isLoading) {
+        if (isWebViewLoading) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.5f)),
+                    .background(Color.Black.copy(alpha = 0.6f)),
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(40.dp),
                     color = MaterialTheme.colorScheme.primary,
-                    strokeWidth = 4.dp
+                    strokeWidth = 3.dp
                 )
-            }
-        }
-
-        if (hasError) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xFF15141B)),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(24.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Error,
-                        contentDescription = "Playback Error",
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(44.dp)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = "Unable to load stream",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = errorMessage ?: "The link is expired, offline, or needs a secure connection.",
-                        color = Color.Gray,
-                        fontSize = 12.sp,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 16.sp
-                    )
-                }
             }
         }
     }

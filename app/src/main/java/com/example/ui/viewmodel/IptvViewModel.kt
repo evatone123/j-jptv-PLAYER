@@ -24,6 +24,9 @@ class IptvViewModel(application: Application) : AndroidViewModel(application) {
     val favoriteChannels: StateFlow<List<ChannelEntity>> = repository.favoriteChannels
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val recentChannels: StateFlow<List<ChannelEntity>> = repository.getRecentChannels(15)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val groups: StateFlow<List<String>> = repository.channelGroups
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -50,8 +53,15 @@ class IptvViewModel(application: Application) : AndroidViewModel(application) {
     private val _isDarkMode = MutableStateFlow(true)
     val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
 
+    private val _isFullscreen = MutableStateFlow(false)
+    val isFullscreen: StateFlow<Boolean> = _isFullscreen.asStateFlow()
+
     fun toggleTheme() {
         _isDarkMode.value = !_isDarkMode.value
+    }
+
+    fun setFullscreen(fullscreen: Boolean) {
+        _isFullscreen.value = fullscreen
     }
 
     // --- Master Channels Core Filter ---
@@ -180,6 +190,11 @@ class IptvViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectChannel(channel: ChannelEntity?) {
         _activeChannel.value = channel
+        channel?.let {
+            viewModelScope.launch {
+                repository.markChannelAsWatched(it.id)
+            }
+        }
     }
 
     // --- Multi-Screen actions ---
@@ -194,9 +209,14 @@ class IptvViewModel(application: Application) : AndroidViewModel(application) {
             val newList = _multiScreenStreams.value.toMutableList()
             newList[index] = channel
             _multiScreenStreams.value = newList
-            // Select audio automatically if we populate the focused index
-            if (channel != null && _multiScreenStreams.value[_focusedAudioIndex.value] == null) {
-                _focusedAudioIndex.value = index
+            if (channel != null) {
+                viewModelScope.launch {
+                    repository.markChannelAsWatched(channel.id)
+                }
+                // Select audio automatically if we populate the focused index
+                if (_multiScreenStreams.value[_focusedAudioIndex.value] == null) {
+                    _focusedAudioIndex.value = index
+                }
             }
         }
     }

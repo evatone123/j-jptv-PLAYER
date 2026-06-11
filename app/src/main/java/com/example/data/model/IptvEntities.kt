@@ -32,7 +32,8 @@ data class ChannelEntity(
     val logoUrl: String?,
     val groupTitle: String?,
     val tvgId: String?,
-    val isFavorite: Boolean = false
+    val isFavorite: Boolean = false,
+    val lastWatchedAt: Long? = null
 )
 
 @Entity(tableName = "epg_programs")

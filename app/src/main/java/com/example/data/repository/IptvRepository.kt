@@ -27,6 +27,16 @@ class IptvRepository(
     val favoriteChannels: Flow<List<ChannelEntity>> = iptvDao.getFavoriteChannels()
     val channelGroups: Flow<List<String>> = iptvDao.getAllGroups()
 
+    fun getRecentChannels(limit: Int): Flow<List<ChannelEntity>> {
+        return iptvDao.getRecentChannels(limit)
+    }
+
+    suspend fun markChannelAsWatched(channelId: Long) {
+        withContext(Dispatchers.IO) {
+            iptvDao.updateLastWatched(channelId, System.currentTimeMillis())
+        }
+    }
+
     fun getChannelsForPlaylist(playlistId: Long): Flow<List<ChannelEntity>> {
         return iptvDao.getChannelsForPlaylist(playlistId)
     }
