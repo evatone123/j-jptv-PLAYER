@@ -42,10 +42,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.example.ui.screens.EpgScreen
 import com.example.ui.screens.LiveTvScreen
 import com.example.ui.screens.MultiScreenView
 import com.example.ui.screens.PlaylistScreen
+import com.example.ui.screens.SplashScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.IptvViewModel
 
@@ -59,9 +63,14 @@ class MainActivity : ComponentActivity() {
     setContent {
       val viewModel: IptvViewModel = viewModel()
       val isDarkMode by viewModel.isDarkMode.collectAsState()
+      var showSplash by remember { mutableStateOf(true) }
       
       MyApplicationTheme(darkTheme = isDarkMode) {
-        IptvApp(viewModel = viewModel)
+        if (showSplash) {
+          SplashScreen(onSplashFinished = { showSplash = false })
+        } else {
+          IptvApp(viewModel = viewModel)
+        }
       }
     }
   }
