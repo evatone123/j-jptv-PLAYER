@@ -1,0 +1,6 @@
+{
+  "name": "J-IPTV Player",
+  "description": "A high-performance IPTV Player supporting M3U playlists, EPG TV guides, and multi-screen player viewings.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
